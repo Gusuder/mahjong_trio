@@ -56,7 +56,7 @@ function computeTileSizeAndFitBoard(){
 function setStatus(html){elStatus.innerHTML=html}
 function updateInfo(){elMoves.textContent=String(moves);elLeft.textContent=String(tiles.length);elTray.textContent=`${tray.length}/${CFG.traySize}`}
 function makeTraySlots(){elTraySlots.innerHTML="";for(let i=0;i<CFG.traySize;i++){const d=document.createElement("div");d.className="traySlot";d.textContent="";elTraySlots.appendChild(d)}}
-function colorFor(symbol){const i=SYMBOLS.indexOf(symbol);const a=(i*37)%360;const b=(a+35)%360;return `linear-gradient(180deg,hsl(${a} 70% 60%),hsl(${b} 70% 45%))`}
+
 function snapshot(){return{tiles:deepCopy(tiles),tray:deepCopy(tray),moves:moves,isOver:isOver}}
 function restore(s){tiles=s.tiles;tray=s.tray;moves=s.moves;isOver=s.isOver}
 function topLayerMap(){const map=new Map();for(const t of tiles){const key=`${t.x}|${t.y}`;const cur=map.get(key);if(cur==null||t.layer>cur)map.set(key,t.layer)}return map}
@@ -84,11 +84,14 @@ function renderBoard(){
     d.style.left=`${startX+t.x*(size+CFG.gap)+t.dx}px`;
     d.style.top=`${startY+t.y*(size+CFG.gap)+t.dy}px`;
     d.style.zIndex=String(100+t.layer*100+t.y*2+t.x);
-    d.style.background=colorFor(t.symbol);
-    d.textContent=t.symbol;
-    const shine=document.createElement("div");
-    shine.className="shine";
-    d.appendChild(shine);
+    d.style.setProperty("--hue",String((SYMBOLS.indexOf(t.symbol)*37)%360));
+const pip=document.createElement("span");
+pip.className="tilePip";
+const icon=document.createElement("span");
+icon.className="tileIcon";
+icon.textContent=t.symbol;
+d.appendChild(pip);
+d.appendChild(icon);
     if(!isClickable(t,top))d.classList.add("blocked");
     d.addEventListener("click",()=>onTileClick(t.id));
     elBoard.appendChild(d);
