@@ -23,7 +23,6 @@ button.danger{background:linear-gradient(180deg,#5a1f2a,#3a151e);border-color:rg
 .tile::after{content:"";position:absolute;inset:0;border-radius:14px;background:radial-gradient(120px 60px at 25% 15%,rgba(255,255,255,.9),transparent 60%);opacity:.9;pointer-events:none}
 .tileIcon{font-size:26px;line-height:1;filter:drop-shadow(0 1px 0 rgba(255,255,255,.35))}
 .tilePip{position:absolute;left:8px;top:8px;width:10px;height:10px;border-radius:999px;background:hsl(var(--hue,200) 70% 55%);box-shadow:0 1px 0 rgba(255,255,255,.85),0 3px 8px rgba(0,0,0,.18)}
-@media (max-width:720px){.tileIcon{font-size:24px}}
 .trayPanel{background:rgba(20,27,46,.75);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:12px 12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
 .trayHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}
 .trayHeader small{opacity:.7}
@@ -33,10 +32,10 @@ button.danger{background:linear-gradient(180deg,#5a1f2a,#3a151e);border-color:rg
 .status .win{color:var(--success);font-weight:800}
 .status .lose{color:var(--danger);font-weight:800}
 .hint{opacity:.65;font-size:12px;margin-top:8px}
-@media (max-width:720px){:root{--tile:50px}.board{min-height:460px}.traySlots{gap:8px}.traySlot{height:58px}}
 button,.tile{touch-action:manipulation}
+@media (max-width:720px){:root{--tile:50px}.board{min-height:460px}.traySlots{gap:8px}.traySlot{height:58px}.tileIcon{font-size:24px}}
 @media (max-width:520px){
-.container{padding:12px 10px 14px}
+.container{padding:12px 10px calc(14px + var(--fixedTraySpace))}
 .title{font-size:16px}
 .buttons{width:100%}
 .buttons button{flex:1 1 calc(50% - 10px)}
@@ -45,13 +44,11 @@ button,.tile{touch-action:manipulation}
 .trayHeader{flex-direction:column;align-items:flex-start}
 .traySlots{gap:8px}
 .traySlot{height:54px;font-size:26px}
+.trayPanel{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));margin:0 auto;max-width:min(980px,calc(100% - 20px));border-radius:22px}
+.board{margin-bottom:var(--fixedTraySpace)}
 }
 @media (max-width:380px){
 :root{--gap:6px}
 .traySlots{gap:6px}
 .traySlot{height:50px;font-size:24px}
-}
-@media (max-width:520px){
-.trayPanel{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));margin:0 auto;max-width:min(980px,calc(100% - 20px));border-radius:22px}
-.board{border-radius:22px}
 }
