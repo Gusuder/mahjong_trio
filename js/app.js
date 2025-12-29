@@ -11,6 +11,8 @@ const btnNew=document.getElementById("btnNew");
 const btnUndo=document.getElementById("btnUndo");
 const btnShuffle=document.getElementById("btnShuffle");
 const btnDifficulty=document.getElementById("btnDifficulty");
+const elContainer=document.querySelector(".container");
+let inputLocked=false;
 let difficulty=1;
 let tiles=[];
 let tray=[];
@@ -20,6 +22,11 @@ let isOver=false;
 function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
 function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=arr[i];arr[i]=arr[j];arr[j]=t}return arr}
 function deepCopy(x){if(typeof structuredClone==="function")return structuredClone(x);return JSON.parse(JSON.stringify(x))}
+function updateFixedTraySpace(trayHeight){
+  const isMobile=window.matchMedia("(max-width:520px)").matches;
+  const space=isMobile?Math.ceil(trayHeight+20):0;
+  document.documentElement.style.setProperty("--fixedTraySpace",space+"px");
+}
 function computeTileSizeAndFitBoard(){
   const desiredVar=getComputedStyle(document.documentElement).getPropertyValue("--tile").trim();
   const desired=parseInt(desiredVar.replace("px",""),10);
@@ -33,9 +40,10 @@ function computeTileSizeAndFitBoard(){
   const headerH=headerEl?headerEl.offsetHeight:0;
   const barH=barEl?barEl.offsetHeight:0;
   const trayH=trayEl?trayEl.offsetHeight:0;
+  updateFixedTraySpace(trayH);
   const viewportH=window.innerHeight;
   const containerPad=24;
-  const availableH=Math.max(260,viewportH-headerH-barH-trayH-containerPad);
+  const availableH=Math.max(240,viewportH-headerH-barH-trayH-containerPad);
   const maxByHeight=Math.floor((availableH-padTop-padBottom-(CFG.rows-1)*CFG.gap)/CFG.rows);
   const boardW=elBoard.clientWidth;
   const maxByWidth=Math.floor((boardW-padX*2-(CFG.cols-1)*CFG.gap)/CFG.cols);
@@ -44,6 +52,7 @@ function computeTileSizeAndFitBoard(){
   elBoard.style.height=requiredH+"px";
   return{size:size,padX:padX,padTop:padTop};
 }
+
 function setStatus(html){elStatus.innerHTML=html}
 function updateInfo(){elMoves.textContent=String(moves);elLeft.textContent=String(tiles.length);elTray.textContent=`${tray.length}/${CFG.traySize}`}
 function makeTraySlots(){elTraySlots.innerHTML="";for(let i=0;i<CFG.traySize;i++){const d=document.createElement("div");d.className="traySlot";d.textContent="";elTraySlots.appendChild(d)}}
@@ -90,7 +99,56 @@ function renderBoard(){
 
 function removeTriples(){let changed=true;while(changed){changed=false;const map=new Map();for(let i=0;i<tray.length;i++){const s=tray[i].symbol;const idxs=map.get(s)||[];idxs.push(i);map.set(s,idxs)}for(const [sym,idxs] of map.entries()){if(idxs.length>=3){const three=idxs.slice(0,3).sort((a,b)=>b-a);for(const idx of three)tray.splice(idx,1);changed=true;break}}}}
 function checkEnd(){if(tiles.length===0){isOver=true;setStatus(`<span class="win">Победа!</span> Поле очищено за <b>${moves}</b> ход(ов).`);return}if(tray.length>=CFG.traySize){isOver=true;setStatus(`<span class="lose">Поражение!</span> Лоток переполнен.`);return}}
-function onTileClick(id){if(isOver)return;const top=topLayerMap();const t=tiles.find(x=>x.id===id);if(!t)return;if(!isClickable(t,top))return;if(tray.length>=CFG.traySize){checkEnd();return}history.push(snapshot());tiles=tiles.filter(x=>x.id!==id);tray.push({symbol:t.symbol,id:t.id});moves++;removeTriples();renderBoard();checkEnd()}
+function animateFlyToTray(tileId,targetIndex){
+  const tileEl=elBoard.querySelector(`.tile[data-id="${tileId}"]`);
+  const slotEl=elTraySlots.children[targetIndex]||elTraySlots.children[CFG.traySize-1];
+  if(!tileEl||!slotEl)return Promise.resolve();
+  const from=tileEl.getBoundingClientRect();
+  const to=slotEl.getBoundingClientRect();
+  const ghost=tileEl.cloneNode(true);
+  ghost.classList.remove("blocked");
+  ghost.style.position="fixed";
+  ghost.style.left=from.left+"px";
+  ghost.style.top=from.top+"px";
+  ghost.style.width=from.width+"px";
+  ghost.style.height=from.height+"px";
+  ghost.style.margin="0";
+  ghost.style.zIndex="9999";
+  ghost.style.pointerEvents="none";
+  document.body.appendChild(ghost);
+  tileEl.style.visibility="hidden";
+  const dx=(to.left+to.width/2)-(from.left+from.width/2);
+  const dy=(to.top+to.height/2)-(from.top+from.height/2);
+  const anim=ghost.animate(
+    [{transform:"translate(0px,0px) scale(1)",opacity:1},{transform:`translate(${dx}px,${dy}px) scale(.85)`,opacity:.95}],
+    {duration:220,easing:"cubic-bezier(.2,.8,.2,1)",fill:"forwards"}
+  );
+  return anim.finished.catch(()=>{}).finally(()=>{
+    ghost.remove();
+    tileEl.style.visibility="";
+  });
+}
+
+async function onTileClick(id){
+  if(isOver||inputLocked)return;
+  const top=topLayerMap();
+  const t=tiles.find(x=>x.id===id);
+  if(!t)return;
+  if(!isClickable(t,top))return;
+  if(tray.length>=CFG.traySize){checkEnd();return}
+  inputLocked=true;
+  const targetIndex=tray.length;
+  await animateFlyToTray(id,targetIndex);
+  history.push(snapshot());
+  tiles=tiles.filter(x=>x.id!==id);
+  tray.push({symbol:t.symbol,id:t.id});
+  moves++;
+  removeTriples();
+  renderBoard();
+  checkEnd();
+  inputLocked=false;
+}
+
 function undo(){if(history.length===0)return;const s=history.pop();restore(s);setStatus("");renderBoard()}
 function shuffleTiles(){if(isOver)return;history.push(snapshot());const sym=tiles.map(t=>t.symbol);shuffle(sym);tiles=tiles.map((t,i)=>({id:t.id,symbol:sym[i],x:t.x,y:t.y,layer:t.layer,dx:t.dx,dy:t.dy}));renderBoard()}
 function toggleDifficulty(){difficulty=difficulty===1?2:1;btnDifficulty.textContent=difficulty===1?"Сложнее":"Полегче";newGame()}
@@ -102,5 +160,6 @@ btnDifficulty.addEventListener("click",()=>toggleDifficulty());
 window.addEventListener("resize",()=>renderBoard());
 (function init(){makeTraySlots();newGame()})();
 window.addEventListener("resize",()=>renderBoard());
-window.addEventListener("orientationchange",()=>setTimeout(()=>renderBoard(),50));
+window.addEventListener("orientationchange",()=>setTimeout(()=>renderBoard(),60));
+
 
